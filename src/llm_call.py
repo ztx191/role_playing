@@ -2,6 +2,8 @@ import os
 import time
 from datetime import date
 from threading import Thread
+
+import openai
 from openai import OpenAI
 
 import torch
@@ -24,15 +26,19 @@ class LocalLLMCallSettings(KernelBaseSettings):
     quantized: bool
     cache_dir: str
     device: str
+    stream: bool
 
 class DeployedLLMSetting(KernelBaseSettings):
     env_prefix: ClassVar[str] = "LLM_"
     base_api: str
     api_key: str
+    name: str
+    stream: bool
 
 class LocalLLMCall:
     def __init__(self, lora_path: Optional[str] = None):
         self.settings = LocalLLMCallSettings.create()
+        self.stream = self.settings.stream
         if self.settings.quantized:
             nf4_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -72,7 +78,7 @@ class LocalLLMCall:
         self.streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True)
         self.eos_token = "<|im_end|>"
 
-    def chat(self, messages, llm_config=None):
+    def ordinary_chat(self, messages, llm_config=None):
         if llm_config is None:
             llm_config = dict()
         text = self.tokenizer.apply_chat_template(
@@ -129,9 +135,70 @@ class LocalLLMCall:
                     _chunk = _chunk.replace(self.eos_token, '')
                 yield _chunk
 
-class DeployedLLMCall:
-    def __init__(self, llm_setting: DeployedLLMSetting = DeployedLLMSetting):
-        self.settings = llm_setting.create()
+    def chat(self, messages, llm_config=None):
+        if not llm_config:
+            llm_config = dict()
+        if self.stream:
+            self.stream_chat(messages, llm_config)
+        else:
+            self.ordinary_chat(messages, llm_config)
+
+class GPTModel:
+    def __init__(self, settings: DeployedLLMSetting = DeployedLLMSetting):
+        self.settings = settings.create()
+        self.base_api = self.settings.base_api
+        self.api_key = self.settings.api_key
+        self.model_name = self.settings.name
+        self.client = OpenAI(base_url=self.base_api, api_key=self.api_key)
+        self.stream = self.settings.stream
+        self.cur_prompt_tokens = None
+        self.cur_completion_tokens = None
+        self.cur_total_tokens = None
+        logger.info(f"加载部署模型，模型名称为{self.model_name}")
+
+    def ordinary_chat(self, messages, llm_config=None):
+        if llm_config is None:
+            llm_config = dict()
+
+        _result = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            temperature=llm_config.get("temperature", 0.9),
+            max_tokens=llm_config.get("max_new_tokens", 1024)
+        )
+        self.cur_prompt_tokens = _result.usage.prompt_tokens
+        self.cur_completion_tokens = _result.usage.completion_tokens
+        self.cur_total_tokens = _result.usage.total_tokens
+        return _result.choices[0].message.content
+
+    def get_token_info(self):
+        return {'prompt_tokens': self.cur_prompt_tokens,
+                'completion_tokens': self.cur_completion_tokens,
+                'total_tokens': self.cur_total_tokens}
+
+    def stream_chat(self, messages, llm_config=None):
+        if llm_config is None:
+            llm_config = dict()
+        completion = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            stream=True,
+            temperature=llm_config.get("temperature", 0.9),
+            max_tokens=llm_config.get("max_new_tokens", 1024)
+        )
+        for _chunk in completion:
+            _result = _chunk.choices[0].delta.content
+            if _result:
+                yield _result
+
+    def chat(self, messages, llm_config=None):
+        if not llm_config:
+            llm_config = dict()
+        if self.stream:
+            self.stream_chat(messages, llm_config)
+        else:
+            self.ordinary_chat(messages, llm_config)
+
 
 
 
