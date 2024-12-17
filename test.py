@@ -73,9 +73,17 @@ def test_openai_call():
     print(res)
     print(model.get_token_info())
 
+def test_local_model():
+    from src.llm_call import LocalLLMCall
+    model = LocalLLMCall(lora_path="a")
+    res = model.ordinary_chat([{"role": "user", "content": "你好"}])
+    print(res)
+
+
 if __name__ == '__main__':
     # result = openai_chat()
     # get_completion()
     # for chunk in result:
     #     print(chunk, end="", flush=True)
-    test_openai_call()
+    # test_openai_call()
+    test_local_model()

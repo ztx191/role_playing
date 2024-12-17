@@ -145,13 +145,13 @@ class RoleAgent:
 
     def choose_character_card(self, character_card: Optional[str] = None, user_name: Optional[str] = None,
                               character_setting: Optional[str] = None, callback=pop_up_window):
-        now_character_card = CharacterCard(character_card=character_card)
+        now_character_card = CharacterCard(character_card=character_card, user_name=user_name)
         if now_character_card.character_setting == "角色卡未找到":
             return self, "角色卡未找到"
         else:
             logger.info(f"开始加载角色卡{character_card}")
             self.character_card = now_character_card
-            return self, None
+            return self, "角色卡选择成功"
 
     def get_system_prompt(self):
         with open(self.agent_setting.system_setting, "r", encoding="utf-8") as f:

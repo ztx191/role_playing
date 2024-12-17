@@ -1,9 +1,6 @@
 import os
 import time
-from datetime import date
 from threading import Thread
-
-import openai
 from openai import OpenAI
 
 import torch
@@ -27,6 +24,7 @@ class LocalLLMCallSettings(KernelBaseSettings):
     cache_dir: str
     device: str
     stream: bool
+    lora_path: str
 
 class DeployedLLMSetting(KernelBaseSettings):
     env_prefix: ClassVar[str] = "LLM_"
@@ -38,6 +36,10 @@ class DeployedLLMSetting(KernelBaseSettings):
 class LocalLLMCall:
     def __init__(self, lora_path: Optional[str] = None):
         self.settings = LocalLLMCallSettings.create()
+        if lora_path:
+            self.lora_path = lora_path
+        else:
+            self.lora_path = self.settings.lora_path
         self.stream = self.settings.stream
         if self.settings.quantized:
             nf4_config = BitsAndBytesConfig(
@@ -59,11 +61,11 @@ class LocalLLMCall:
             self.base_model = model
         except Exception as e:
             logger.error(f"加载基础模型失败。错误原因为{e}，请检测模型路径是否正确。")
-        if lora_path:
+        if self.lora_path:
             try:
                 logger.info("开始加载lora模型...")
-                self.model = PeftModel.from_pretrained(self.base_model, lora_path, adapter_name=os.path.basename(lora_path))
-                self.model.set_adapter(os.path.basename(lora_path))
+                self.model = PeftModel.from_pretrained(self.base_model, self.lora_path, adapter_name=os.path.basename(self.lora_path))
+                self.model.set_adapter(os.path.basename(self.lora_path))
                 logger.info("加载lora模型成功！！！")
             except Exception as e:
                 logger.error(f"加载lora模型失败。错误原因为{e}\n开始使用基础模型...")
@@ -139,9 +141,11 @@ class LocalLLMCall:
         if not llm_config:
             llm_config = dict()
         if self.stream:
-            self.stream_chat(messages, llm_config)
+            _result = self.stream_chat(messages, llm_config)
         else:
-            self.ordinary_chat(messages, llm_config)
+            _result = self.ordinary_chat(messages, llm_config)
+        return _result
+
 
 class GPTModel:
     def __init__(self, settings: DeployedLLMSetting = DeployedLLMSetting):
@@ -195,9 +199,10 @@ class GPTModel:
         if not llm_config:
             llm_config = dict()
         if self.stream:
-            self.stream_chat(messages, llm_config)
+            _result = self.stream_chat(messages, llm_config)
         else:
-            self.ordinary_chat(messages, llm_config)
+            _result = self.ordinary_chat(messages, llm_config)
+        return _result
 
 
 
