@@ -9,7 +9,7 @@ def init_agent():
 
 def main_chat():
     agent = init_agent()
-    print(f"欢迎使用智障聊天机器人，当前为默认角色{agent.character_card.character_card}")
+    print(f"欢迎使用智障聊天机器人")
     print("指令：\nc清空历史，\nh切换角色卡，\ns保存对话历史，\nq退出，\nenter键开始后续")
     while True:
         user_input = input("请输入：")
@@ -44,6 +44,7 @@ def main_chat():
                 print("切换角色卡成功")
             continue
         else:
+            print(f"当前为默认角色{agent.character_card.character_card}")
             if not agent.character_card.user_name:
                 input_u = input("请输入您想扮演的角色：")
             else:

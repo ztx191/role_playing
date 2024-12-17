@@ -25,6 +25,7 @@ class LocalLLMCallSettings(KernelBaseSettings):
     device: str
     stream: bool
     lora_path: str
+    torch_type: str
 
 class DeployedLLMSetting(KernelBaseSettings):
     env_prefix: ClassVar[str] = "LLM_"
@@ -41,6 +42,12 @@ class LocalLLMCall:
         else:
             self.lora_path = self.settings.lora_path
         self.stream = self.settings.stream
+        if self.settings.torch_type == "float16":
+            self.torch_type = torch.float16
+        elif self.settings.torch_type == "bfloat16":
+            self.torch_type = torch.bfloat16
+        else:
+            self.torch_type = None
         if self.settings.quantized:
             nf4_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -55,6 +62,7 @@ class LocalLLMCall:
                 device_map=self.settings.device,
                 trust_remote_code=True,
                 cache_dir=self.settings.cache_dir,
+                torch_dtype=self.torch_type,
                 quantization_config=nf4_config if self.settings.quantized else None
             )
             logger.info("加载基础模型成功！！！")
@@ -64,7 +72,7 @@ class LocalLLMCall:
         if self.lora_path:
             try:
                 logger.info("开始加载lora模型...")
-                self.model = PeftModel.from_pretrained(self.base_model, self.lora_path, adapter_name=os.path.basename(self.lora_path))
+                self.model = PeftModel.from_pretrained(self.base_model, self.lora_path, adapter_name=os.path.basename(self.lora_path), torch_dtype=self.torch_type)
                 self.model.set_adapter(os.path.basename(self.lora_path))
                 logger.info("加载lora模型成功！！！")
             except Exception as e:
