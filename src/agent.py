@@ -5,7 +5,7 @@ import jinja2
 from semantic_kernel.kernel_pydantic import KernelBaseSettings
 from datetime import datetime
 
-from src.llm_call import LocalLLMCall
+from src.llm_call import LocalLLMCall, GPTModel
 from src.logger_setting import LoggerTemplate
 from logging import DEBUG
 file_path = os.path.basename(os.path.abspath(__file__))
@@ -111,23 +111,28 @@ def get_chat_size_history(history: list, size: int):
 
 class RoleAgent:
     def __init__(self, agent_setting: RoleSetting = RoleSetting,
-                 use_rag: bool = False, lora_path = None):
+                 use_rag: bool = False):
         if use_rag:
             self.rag_prompt = None
             self.rag_setting = None
             self.init_rag()
         self.use_rag = use_rag
         self.agent_setting = agent_setting.create()
-        self.llm_call = LocalLLMCall(lora_path)
+        self.llm_call = None
         self.system_prompt, self.history_prompt, self.opening_remarks = self.get_system_prompt()
         self.system_message = list()
         self.character_card = None
         self.chat_history_size = self.agent_setting.chat_history_size
 
+    def load_llm(self, model_type: str = "deployed", lora_path: str = None):
+        if model_type == "local":
+            self.llm_call = LocalLLMCall(lora_path=lora_path)
+        elif model_type == "deployed":
+            self.llm_call = GPTModel()
 
     def get_user_input(self, user_input: str, character_card: str = None,
                        character_setting: str = None, user_name: str = None):
-        if user_input.lower() == "y":
+        if user_input:
             logger.info("开始创建角色卡...")
             # input_character_card = input("请输入角色卡名称：(按回车结束)：")
             # input_character_setting = input("请输入角色卡设定：(按回车结束)：")

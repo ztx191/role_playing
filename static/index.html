@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天机器人</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #chatbox { width: 400px; height: 300px; border: 1px solid #ccc; padding: 10px; overflow-y: scroll; margin-bottom: 10px; }
+        #userInput { width: 350px; }
+        #sendButton { width: 40px; }
+        .message { margin: 5px 0; }
+        .user { text-align: right; color: blue; }
+        .bot { text-align: left; color: green; }
+    </style>
+</head>
+<body>
+    <h1>欢迎使用智障聊天机器人</h1>
+    <div id="chatbox"></div>
+    <input type="text" id="userInput" placeholder="输入消息...">
+    <button id="sendButton">发送</button>
+    <br><br>
+    <button onclick="changeCharacter()">更换角色卡</button>
+    <button onclick="clearHistory()">清空历史记录</button>
+    <button onclick="saveHistory()">保存历史记录</button>
+    <button onclick="viewHistory()">查看历史记录</button>
+
+    <script>
+        const chatbox = document.getElementById('chatbox');
+        const userInput = document.getElementById('userInput');
+
+        async function sendMessage() {
+            const message = userInput.value;
+            if (message.trim() === '') return;
+
+            appendMessage('user', message);
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        input: message,
+                        user_name: document.getElementById('userName').value || '默认用户'
+                    })
+                });
+                const data = await response.json();
+                appendMessage('bot', data.response);
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('bot', '发生错误，请稍后再试。');
+            }
+        }
+
+        async function changeCharacter() {
+            const newCharacterName = prompt('请输入新角色卡名称:');
+            const createNew = confirm('角色卡未找到，是否创建该角色卡？');
+            const characterSetting = createNew ? prompt('请输入角色卡设定:') : '';
+
+            try {
+                const response = await fetch('/change', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        new_character_name: newCharacterName,
+                        create_new: createNew,
+                        character_setting: characterSetting
+                    })
+                });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('发生错误，请稍后再试。');
+            }
+        }
+
+        async function clearHistory() {
+            try {
+                const response = await fetch('/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'clear'
+                    })
+                });
+                const data = await response.json();
+                alert(data.message);
+                chatbox.innerHTML = '';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('发生错误，请稍后再试。');
+            }
+        }
+
+        async function saveHistory() {
+            try {
+                const response = await fetch('/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'save'
+                    })
+                });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('发生错误，请稍后再试。');
+            }
+        }
+
+        async function viewHistory() {
+            try {
+                const response = await fetch('/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'view'
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    let historyHtml = '';
+                    data.history.forEach(entry => {
+                        for (const [key, value] of Object.entries(entry)) {
+                            historyHtml += `<div class="${key.toLowerCase()}"><strong>${key}:</strong> ${value}</div>`;
+                        }
+                    });
+                    chatbox.innerHTML = historyHtml;
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('发生错误，请稍后再试。');
+            }
+        }
+
+        function appendMessage(sender, message) {
+            const div = document.createElement('div');
+            div.className = sender + ' message';
+            div.textContent = message;
+            chatbox.appendChild(div);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 初始设置用户名
+        document.body.insertAdjacentHTML('beforeend', '<input type="hidden" id="userName" value="默认用户">');
+    </script>
+</body>
+</html>

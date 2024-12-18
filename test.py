@@ -1,42 +1,7 @@
-import aiohttp
 import requests
 import json
-# from src.agent import RoleAgent, CharacterCard
-# role_agent = RoleAgent()
 from openai import OpenAI
-# while True:
-#     character_card = input("请选择角色卡：")
-#     role_agent, status = role_agent.choose_character_card(character_card)
-#     if status == "角色卡未找到":
-#         user_input = input("当前无该角色卡，是否创建该角色卡：")
-#         if user_input == "y":
-#             input_c = character_card
-#             input_s = input("请输入角色卡描述：")
-#             role_agent.get_user_input("y", input_c, input_s)
-#         else:
-#             role_agent.get_user_input("n")
-#     print("角色卡已选择")
-#     input_u = input("请输入用户名：")
-#     role_agent.character_card.set_user_name(input_u)
-#     print(f"当前你在和{role_agent.character_card.character_card}聊天, 你扮演的角色是{role_agent.character_card.user_name}")
-#     query = input("请输入问题：")
-#     result = role_agent.role_chat(query)
-#     print(result)
-#     print(role_agent.character_card.chat_history)
-# role_agent.choose_character_card(character_card="张晓")
-# role_agent.character_card.set_user_name("主人")
-# print(f"你是{role_agent.character_card.character_card}的{role_agent.character_card.user_name}")
-# cnt = 0
-# while cnt < 5:
-#     query = input("请输入问题：")
-#     result = role_agent.role_chat(query)
-#     print(result)
-#     print()
-#     print(role_agent.character_card.chat_history)
-#     cnt += 1
-# role_agent.character_card.save_chat_history()
-# client = aiohttp.ClientSession()
-# result = client.post()
+from anthropic import Anthropic
 
 def get_completion():
     headers = {'Content-Type': 'application/json'}
@@ -79,6 +44,33 @@ def test_local_model():
     res = model.ordinary_chat([{"role": "user", "content": "你好"}])
     print(res)
 
+def test_anthropic():
+    client = Anthropic(
+        api_key="sk-W6yiaxzMXDVmfT0mOGPxy2PbJfOJivW8kZHgtZ6ghlWWAqY4",
+        base_url="https://api.aiproxy.io"
+    )
+
+    message = client.messages.create(
+        system=[
+            {
+                "type": "text",
+                "text": "你知道鲁迅但是你没有看过《朝花夕拾》",
+            }],
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": "评价一下鲁迅的《朝花夕拾》"
+            }
+        ],
+        model="claude-3-sonnet-20240229",
+    )
+    print(message)
+
+
+def test():
+    from src import start_chat
+
 
 if __name__ == '__main__':
     # result = openai_chat()
@@ -86,4 +78,5 @@ if __name__ == '__main__':
     # for chunk in result:
     #     print(chunk, end="", flush=True)
     # test_openai_call()
-    test_local_model()
+    # test_local_model()
+    test_anthropic()

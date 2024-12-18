@@ -5,6 +5,7 @@ from src.agent import RoleAgent
 def init_agent():
     role_agent = RoleAgent()
     agent, status = role_agent.choose_character_card("张晓", "主人")
+    agent.load_llm()
     return agent
 
 def main_chat():
@@ -36,6 +37,7 @@ def main_chat():
             if status == "角色卡未找到":
                 input_user_main = input("角色卡未找到，是否创建该角色卡：")
                 if input_user_main.lower() == "y":
+                    input_user_main = True
                     input_s = input("请输入角色卡设定：")
                     agent.get_user_input(input_user_main, input_c, input_s)
                     agent.character_card.set_user_name(None)
