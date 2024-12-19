@@ -49,6 +49,10 @@ class CharacterCard:
         self.character_setting = self.load_character_setting()
         self.chat_history_path = self.role_setting.chat_history_path
         self.chat_history = list()
+        self.character_card_list = self.get_character_list()
+
+    def get_character_list(self):
+        return [name.split(".")[0] for name in os.listdir(self.role_setting.character_cards_path)]
 
     def load_character_setting(self):
         try:
@@ -56,13 +60,28 @@ class CharacterCard:
                 character_setting = f.read()
         except FileNotFoundError:
             logger.error("角色卡未找到")
-            character_setting = "角色卡未找到"
+            character_setting = None
         return character_setting
 
-    def create_character_card(self, character_name: str, character_setting: str, user_name: str):
-        with open(os.path.join(self.role_setting.character_cards_path, f"{character_name}.txt"), "w", encoding="utf-8") as f:
-            f.write(character_setting)
-        return CharacterCard(character_card=character_name, user_name=user_name)
+    def create_character_card(self, character_name: str, character_setting: Optional[str] = None,
+                              user_main: bool = True):
+        if character_name not in self.character_card_list:
+            logger.info(f"开始创建角色卡：{character_name}")
+            with open(os.path.join(self.role_setting.character_cards_path, f"{character_name}.txt"), "w", encoding="utf-8") as f:
+                f.write(character_setting)
+            self.character_card_list.append(character_name)
+            logger.info(f"角色卡“{character_name}”创建完成！")
+        else:
+            logger.info(f"角色卡“{character_name}”已存在！")
+            if character_name == "张晓":
+                logger.error("角色卡张晓为初始角色不能更改！")
+            else:
+                if user_main:
+                    logger.info(f"用户修改{character_name}的设定")
+                    self.set_character_card(character_name, character_setting)
+                else:
+                    logger.info(f"用户未修改{character_name}的设定")
+
 
     def save_chat_history(self):
         save_path = os.path.join(self.role_setting.chat_history_path, f"{self.character_card}")
@@ -81,7 +100,7 @@ class CharacterCard:
             return "历史加载失败"
         else:
             user_chat = [file for file in os.listdir(load_path) if file.split("_")[0] == self.user_name]
-            user_chat = sorted(user_chat, key=lambda x: float(x.replace(".join", "").split("_")[-1]))
+            user_chat = sorted(user_chat, key=lambda x: float(x.split(".")[0].split("_")[-1]))
             load_path = os.path.join(load_path, user_chat[-1])
             logger.info(f"开始加载{self.user_name}与{self.character_card}的最后一次对话记录")
             with open(load_path, "r", encoding="utf-8") as f:
@@ -90,9 +109,16 @@ class CharacterCard:
             return chat_history
 
     def set_character_card(self, character_name: str, character_setting: str):
-        pass
+        old_name = character_name + ".txt"
+        old_name = os.path.join(self.role_setting.character_cards_path, old_name)
+        new_name = character_name + f"_{datetime.now().timestamp()}" + ".txt"
+        new_name = os.path.join(self.role_setting.character_cards_path, new_name)
+        os.rename(old_name, new_name)
+        with open(os.path.join(self.role_setting.character_cards_path, f"{character_name}.txt"), "w",
+                  encoding="utf-8") as f:
+            f.write(character_setting)
 
-    def set_user_name(self, user_name: str):
+    def set_user_name(self, user_name: Optional[str]):
         self.user_name = user_name
 
     def get_size_chat_history(self, size: int):
@@ -124,39 +150,27 @@ class RoleAgent:
         self.character_card = None
         self.chat_history_size = self.agent_setting.chat_history_size
 
-    def load_llm(self, model_type: str = "deployed", lora_path: str = None):
+    def load_llm(self, model_type: str = "deployed", lora_path: Optional[str] = None):
         if model_type == "local":
             self.llm_call = LocalLLMCall(lora_path=lora_path)
         elif model_type == "deployed":
             self.llm_call = GPTModel()
 
-    def get_user_input(self, user_input: str, character_card: str = None,
-                       character_setting: str = None, user_name: str = None):
-        if user_input:
-            logger.info("开始创建角色卡...")
-            # input_character_card = input("请输入角色卡名称：(按回车结束)：")
-            # input_character_setting = input("请输入角色卡设定：(按回车结束)：")
-            # input_user_name = input("对话中你希望扮演的角色：(比如：主人，按回车结束)：")
-            new_character_card = self.character_card.create_character_card(character_name=character_card,
-                                                                          character_setting=character_setting,
-                                                                          user_name=user_name)
+    def load_default_setting(self):
+        self.character_card = CharacterCard()
 
-            logger.info(f"角色卡“{character_card}”创建完成！")
-            self.character_card = new_character_card
+    def choose_character_card(self, character_card: Optional[str], character_setting: Optional[str] = None,
+                              user_main: bool = True, user_switch: bool = False):
+        if character_card in self.character_card.character_card_list:
+            self.character_card = CharacterCard(character_card=character_card)
+            self.character_card.set_user_name(None)
         else:
-            if not self.character_card:
-                logger.info("你当前未选择角色卡，开始加载默认角色“张晓”")
-                self.character_card = CharacterCard(character_card="张晓")
-
-    def choose_character_card(self, character_card: Optional[str] = None, user_name: Optional[str] = None,
-                              character_setting: Optional[str] = None, callback=pop_up_window):
-        now_character_card = CharacterCard(character_card=character_card, user_name=user_name)
-        if now_character_card.character_setting == "角色卡未找到":
-            return self, "角色卡未找到"
-        else:
-            logger.info(f"开始加载角色卡{character_card}")
-            self.character_card = now_character_card
-            return self, "角色卡选择成功"
+            if user_main:
+                self.character_card.create_character_card(character_card, character_setting)
+                if user_switch:
+                    logger.info(f"用户创建角色卡{character_card}，并切换该角色卡")
+                    self.character_card = CharacterCard(character_card=character_card)
+                    self.character_card.set_user_name(None)
 
     def get_system_prompt(self):
         with open(self.agent_setting.system_setting, "r", encoding="utf-8") as f:

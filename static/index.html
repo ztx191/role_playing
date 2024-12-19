@@ -1,170 +1,206 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>聊天机器人</title>
+    <title>角色扮演聊天机器人</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #chatbox { width: 400px; height: 300px; border: 1px solid #ccc; padding: 10px; overflow-y: scroll; margin-bottom: 10px; }
-        #userInput { width: 350px; }
-        #sendButton { width: 40px; }
-        .message { margin: 5px 0; }
-        .user { text-align: right; color: blue; }
-        .bot { text-align: left; color: green; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 50%;
+            max-width: 600px;
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .chat-box {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .user-message {
+            text-align: right;
+            margin-bottom: 5px;
+        }
+        .bot-message {
+            text-align: left;
+            margin-bottom: 5px;
+        }
+        .input-area {
+            display: flex;
+            justify-content: space-between;
+        }
+        .input-area input {
+            width: 70%;
+            padding: 10px;
+        }
+        .input-area button {
+            width: 25%;
+            padding: 10px;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        .buttons button {
+            width: 18%;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>欢迎使用智障聊天机器人</h1>
-    <div id="chatbox"></div>
-    <input type="text" id="userInput" placeholder="输入消息...">
-    <button id="sendButton">发送</button>
-    <br><br>
-    <button onclick="changeCharacter()">更换角色卡</button>
-    <button onclick="clearHistory()">清空历史记录</button>
-    <button onclick="saveHistory()">保存历史记录</button>
-    <button onclick="viewHistory()">查看历史记录</button>
+    <div class="container">
+        <div class="title"><h1>角色扮演聊天机器人</h1></div>
+        <div class="chat-box" id="chat-box"></div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="输入消息...">
+            <button onclick="sendMessage()">Chat</button>
+        </div>
+        <div class="buttons">
+            <button onclick="clearHistory()">清空记录</button>
+            <button onclick="saveHistory()">保存记录</button>
+            <button onclick="createCharacter()">创建角色卡</button>
+            <button onclick="chooseCharacter()">切换角色卡</button>
+        </div>
+    </div>
 
     <script>
-        const chatbox = document.getElementById('chatbox');
-        const userInput = document.getElementById('userInput');
+        let currentRoleCard = '';
+        let userName = '';
 
-        async function sendMessage() {
-            const message = userInput.value;
-            if (message.trim() === '') return;
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            if (!userInput) return;
 
-            appendMessage('user', message);
-            userInput.value = '';
+            appendMessage('user', userInput);
 
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        input: message,
-                        user_name: document.getElementById('userName').value || '默认用户'
-                    })
-                });
-                const data = await response.json();
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: userInput })
+            })
+            .then(response => response.json())
+            .then(data => {
                 appendMessage('bot', data.response);
-            } catch (error) {
-                console.error('Error:', error);
-                appendMessage('bot', '发生错误，请稍后再试。');
-            }
-        }
-
-        async function changeCharacter() {
-            const newCharacterName = prompt('请输入新角色卡名称:');
-            const createNew = confirm('角色卡未找到，是否创建该角色卡？');
-            const characterSetting = createNew ? prompt('请输入角色卡设定:') : '';
-
-            try {
-                const response = await fetch('/change', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        new_character_name: newCharacterName,
-                        create_new: createNew,
-                        character_setting: characterSetting
-                    })
-                });
-                const data = await response.json();
-                alert(data.message);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('发生错误，请稍后再试。');
-            }
-        }
-
-        async function clearHistory() {
-            try {
-                const response = await fetch('/history', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'clear'
-                    })
-                });
-                const data = await response.json();
-                alert(data.message);
-                chatbox.innerHTML = '';
-            } catch (error) {
-                console.error('Error:', error);
-                alert('发生错误，请稍后再试。');
-            }
-        }
-
-        async function saveHistory() {
-            try {
-                const response = await fetch('/history', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'save'
-                    })
-                });
-                const data = await response.json();
-                alert(data.message);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('发生错误，请稍后再试。');
-            }
-        }
-
-        async function viewHistory() {
-            try {
-                const response = await fetch('/history', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'view'
-                    })
-                });
-                const data = await response.json();
-                if (data.status === 'success') {
-                    let historyHtml = '';
-                    data.history.forEach(entry => {
-                        for (const [key, value] of Object.entries(entry)) {
-                            historyHtml += `<div class="${key.toLowerCase()}"><strong>${key}:</strong> ${value}</div>`;
-                        }
-                    });
-                    chatbox.innerHTML = historyHtml;
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('发生错误，请稍后再试。');
-            }
+                document.getElementById('user-input').value = '';
+            });
         }
 
         function appendMessage(sender, message) {
-            const div = document.createElement('div');
-            div.className = sender + ' message';
-            div.textContent = message;
-            chatbox.appendChild(div);
-            chatbox.scrollTop = chatbox.scrollHeight;
+            const chatBox = document.getElementById('chat-box');
+            const messageElement = document.createElement('div');
+            messageElement.className = sender === 'user' ? 'user-message' : 'bot-message';
+            messageElement.textContent = `${sender === 'user' ? userName : currentRoleCard}: ${message}`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        document.getElementById('sendButton').addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
+        function clearHistory() {
+            fetch('/clear', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                document.getElementById('chat-box').innerHTML = '';
+            });
+        }
 
-        // 初始设置用户名
-        document.body.insertAdjacentHTML('beforeend', '<input type="hidden" id="userName" value="默认用户">');
+        function saveHistory() {
+            fetch('/save_history', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.clear_chat) {
+                    document.getElementById('chat-box').innerHTML = '';
+                }
+            });
+        }
+
+        function createCharacter() {
+            const characterName = prompt("请输入角色卡名称：");
+            const characterSetting = prompt("请输入角色卡设定：");
+
+            if (characterName && characterSetting) {
+                fetch('/create_character', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ character_name: characterName, character_setting: characterSetting })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.action === "modify") {
+                        const modify = confirm(data.message);
+                        if (modify) {
+                            fetch('/confirm_modify_character', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ character_name: characterName, character_setting: characterSetting })
+                            })
+                            .then(response => response.json())
+                            .then(modifyData => {
+                                alert(modifyData.message);
+                            });
+                        } else {
+                            alert("未修改角色卡设定！");
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            } else {
+                alert("请输入有效的角色卡名称和设定！");
+            }
+        }
+
+        function chooseCharacter() {
+            const characterName = prompt("请输入角色卡名称：");
+            const userRole = prompt("请输入您想扮演的角色：");
+
+            if (characterName && userRole) {
+                fetch('/choose_character', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ character_name: characterName, user_role: userRole })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    currentRoleCard = characterName;
+                    userName = userRole;
+                    document.getElementById('chat-box').innerHTML = '';
+                });
+            } else {
+                alert("请输入有效的角色卡名称和用户角色！");
+            }
+        }
     </script>
 </body>
 </html>
+
+
+

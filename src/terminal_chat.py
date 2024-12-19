@@ -4,14 +4,14 @@ from src.agent import RoleAgent
 
 def init_agent():
     role_agent = RoleAgent()
-    agent, status = role_agent.choose_character_card("张晓", "主人")
-    agent.load_llm()
-    return agent
+    role_agent.load_default_setting()
+    role_agent.load_llm()
+    return role_agent
 
 def main_chat():
     agent = init_agent()
-    print(f"欢迎使用智障聊天机器人")
-    print("指令：\nc清空历史，\nh切换角色卡，\ns保存对话历史，\nq退出，\nenter键开始后续")
+    print(f"欢迎使用角色扮演聊天机器人")
+    print("指令：\nc清空历史，\nh切换角色卡，\ns保存对话历史，\nq退出，\nb创建角色卡，\nenter键开始后续")
     while True:
         user_input = input("请输入：")
         if user_input.lower() == "c":
@@ -20,33 +20,53 @@ def main_chat():
             else:
                 agent.save_chat_history()
                 agent.character_card.chat_history = list()
-            continue
+                print("历史记录已清空")
         elif user_input.lower() == "s":
             if not agent.character_card.chat_history:
                 print("当前无历史记录")
             else:
                 agent.save_chat_history()
-            continue
+                print("历史记录已保存")
         elif user_input.lower() == "q":
             print("退出")
             return
         elif user_input.lower() == "h":
             input_c = input("请输入角色卡名称(enter键结束)：")
-            agent, status = agent.choose_character_card(input_c)
-            agent.character_card.set_user_name(None)
-            if status == "角色卡未找到":
+            if input_c in agent.character_card.get_character_list():
+                agent.choose_character_card(input_c)
+                print("切换角色卡成功")
+            else:
                 input_user_main = input("角色卡未找到，是否创建该角色卡：")
                 if input_user_main.lower() == "y":
-                    input_user_main = True
                     input_s = input("请输入角色卡设定：")
-                    agent.get_user_input(input_user_main, input_c, input_s)
-                    agent.character_card.set_user_name(None)
+                    agent.choose_character_card(input_c, input_s)
                     print("创建角色卡成功")
+                    input_user_s1 = input("是否切换至该角色卡：")
+                    if input_user_s1.lower() == "y":
+                        agent.choose_character_card(input_c, user_switch=True)
+                        print(f"切换到角色{agent.character_card.character_card}")
+                    else:
+                        print(f"未切换该角色卡，切换到当前角色卡{agent.character_card.character_card}")
                 else:
                     print("创建角色卡失败！enter键继续当前聊天")
+
+        elif user_input.lower() == "b":
+            print("开始创建角色卡！")
+            c = input("请输入角色卡名称：")
+            if c in agent.character_card.get_character_list():
+                m = input("角色卡已存在，是否修改其设定？")
+                if m == "y":
+                    s = input("请输入角色卡设定：")
+                    agent.character_card.create_character_card(c, s)
+                    print("修改角色卡设定成功！enter键继续")
+                else:
+                    agent.character_card.create_character_card(c, user_main=False)
+                    print("未修改角色卡设定！enter键继续")
             else:
-                print("切换角色卡成功")
-            continue
+                s = input("请输入角色卡设定：")
+                agent.character_card.create_character_card(c, s)
+                print("创建角色卡成功！enter键继续")
+
         else:
             print(f"当前角色卡为{agent.character_card.character_card}")
             if not agent.character_card.user_name:
