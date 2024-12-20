@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory, request, jsonify
 from src.agent import RoleAgent
+from gevent import pywsgi
 
 app = Flask(__name__)
 agent = RoleAgent()
@@ -15,15 +16,22 @@ def index():
 @app.route('/save_history', methods=['POST'])
 def save_history():
     global agent
-    agent.save_chat_history()
-    return jsonify({"message": "历史记录已保存", "clear_chat": True})
+    if not agent.character_card.chat_history:
+        return jsonify({"message": "历史记录为空"})
+    else:
+        agent.save_agent_chat_history()
+        return jsonify({"message": "历史记录已保存", "clear_chat": True})
 
 
 @app.route('/clear', methods=['POST'])
 def clear_history():
     global agent
-    agent.character_card.chat_history = list()
-    return jsonify({"message": "历史记录已清空"})
+    if not agent.character_card.chat_history:
+        return jsonify({"message": "历史记录为空"})
+    else:
+        agent.save_agent_chat_history()
+        agent.character_card.chat_history = list()
+        return jsonify({"message": "历史记录已清空"})
 
 
 @app.route('/create_character', methods=['POST'])
@@ -32,7 +40,6 @@ def create_character():
     data = request.json
     character_name = data.get('character_name')
     character_setting = data.get('character_setting')
-
     if character_name in agent.character_card.get_character_list():
         return jsonify({"message": "角色卡已存在，是否修改其设定？", "action": "modify"})
     else:
@@ -76,6 +83,7 @@ def chat():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=8080, debug=True)
-
+    # server = pywsgi.WSGIServer(('0.0.0.0', 8080), app)
+    # server.serve_forever()
 
 

@@ -18,14 +18,14 @@ def main_chat():
             if not agent.character_card.chat_history:
                 print("当前无历史记录")
             else:
-                agent.save_chat_history()
+                agent.save_agent_chat_history()
                 agent.character_card.chat_history = list()
                 print("历史记录已清空")
         elif user_input.lower() == "s":
             if not agent.character_card.chat_history:
                 print("当前无历史记录")
             else:
-                agent.save_chat_history()
+                agent.save_agent_chat_history()
                 print("历史记录已保存")
         elif user_input.lower() == "q":
             print("退出")

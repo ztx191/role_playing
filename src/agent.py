@@ -119,6 +119,8 @@ class CharacterCard:
             f.write(character_setting)
 
     def set_user_name(self, user_name: Optional[str]):
+        if user_name:
+            logger.info(f"用户给自己的设定是{user_name}")
         self.user_name = user_name
 
     def get_size_chat_history(self, size: int):
@@ -150,7 +152,7 @@ class RoleAgent:
         self.character_card = None
         self.chat_history_size = self.agent_setting.chat_history_size
 
-    def load_llm(self, model_type: str = "deployed", lora_path: Optional[str] = None):
+    def load_llm(self, model_type: str = "local", lora_path: Optional[str] = None):
         if model_type == "local":
             self.llm_call = LocalLLMCall(lora_path=lora_path)
         elif model_type == "deployed":
@@ -163,6 +165,7 @@ class RoleAgent:
                               user_main: bool = True, user_switch: bool = False):
         if character_card in self.character_card.character_card_list:
             self.character_card = CharacterCard(character_card=character_card)
+            logger.info(f"用户切换到角色卡{character_card}")
             self.character_card.set_user_name(None)
         else:
             if user_main:
@@ -204,6 +207,8 @@ class RoleAgent:
                                                   character_setting=self.character_card.character_setting)
         opening_remarks = self.opening_remarks.render(character_card=self.character_card.character_card,
                                                       user_name=self.character_card.user_name)
+        logger.info(f"当前用户在和{self.character_card.character_card}对话，用户身份是{self.character_card.user_name}")
+        logger.info(f"当前用户输入{query}")
         self.system_message = [{"role": "system", "content": system_prompt}]
         if not history:
             messages = self.system_message
@@ -214,6 +219,7 @@ class RoleAgent:
                     result = self.llm_call.chat(messages)
                     message.extend([{"role": "assistant", "content": result}])
                     self.character_card.chat_history.extend(message)
+                    logger.info(f"模型输出为{result}")
                     return result
                 else:
                     return "你想要对我说什么"
@@ -229,6 +235,7 @@ class RoleAgent:
                 result = self.llm_call.chat(messages)
                 message.extend([{"role": "assistant", "content": result}])
                 self.character_card.chat_history.extend(message)
+                logger.info(f"模型输出为{result}")
                 return result
         else:
             # 加载当前对话环境中两者最近一次聊天记录
@@ -249,12 +256,16 @@ class RoleAgent:
                 message.extend([{"role": "assistant", "content": result}])
                 history.extend(message)
                 self.character_card.chat_history.extend(history)
+                logger.info(f"模型输出为{result}")
                 return result
-    def save_chat_history(self):
+    def save_agent_chat_history(self):
         if not self.character_card:
             logger.info("你当前未选择角色卡，无法保存聊天记录")
             return "无法保存"
         else:
+            if not self.character_card.chat_history:
+                logger.info("当前角色卡聊天记录为空，无法保存")
+                return "无法保存"
             self.character_card.save_chat_history()
             return "保存成功"
 
